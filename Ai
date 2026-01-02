@@ -1,4 +1,4 @@
--- // MOBILE MOTION-BASED ACCEL (ANTI-W KEY) //
+-- // MOBILE AUTO-BOOST (DETEKSI GERAKAN FISIK - TANPA TOMBOL W) //
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
@@ -8,27 +8,28 @@ _G.AccelEnabled = false
 _G.MaxPower = 400 
 _G.CurrentSpeed = 0 
 
--- // UI SETUP //
+-- // 1. SETUP UI AGAR MUNCUL DI TABLET //
 local ScreenGui = Instance.new("ScreenGui", PlayerGui)
-ScreenGui.Name = "AccelGui"
+ScreenGui.Name = "AutoBoostGui"
+
 local Btn = Instance.new("TextButton", ScreenGui)
 Btn.Size = UDim2.new(0, 150, 0, 50)
-Btn.Position = UDim2.new(0.05, 0, 0.4, 0)
-Btn.Text = "ACCEL: OFF"
-Btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Btn.Position = UDim2.new(0.05, 0, 0.4, 0) -- Posisi kiri tengah
+Btn.Text = "BOOST: OFF"
+Btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 Btn.TextColor3 = Color3.new(1, 1, 1)
 Btn.Font = Enum.Font.SourceSansBold
 Btn.TextSize = 20
-Instance.new("UICorner", Btn)
+Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 10)
 
 Btn.Activated:Connect(function()
     _G.AccelEnabled = not _G.AccelEnabled
-    Btn.Text = "ACCEL: " .. (_G.AccelEnabled and "ON" or "OFF")
-    Btn.BackgroundColor3 = _G.AccelEnabled and Color3.fromRGB(0, 200, 255) or Color3.fromRGB(30, 30, 30)
+    Btn.Text = "BOOST: " .. (_G.AccelEnabled and "ON" or "OFF")
+    Btn.BackgroundColor3 = _G.AccelEnabled and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(40, 40, 40)
     if not _G.AccelEnabled then _G.CurrentSpeed = 0 end
 end)
 
--- // LOGIKA DETEKSI GERAKAN FISIK //
+-- // 2. LOGIKA BOOST BERDASARKAN MOMENTUM //
 RunService.Heartbeat:Connect(function()
     if _G.AccelEnabled then
         local char = LocalPlayer.Character
@@ -36,25 +37,28 @@ RunService.Heartbeat:Connect(function()
         local seat = hum and hum.SeatPart
         
         if seat and seat:IsA("VehicleSeat") then
-            -- Cek apakah mobil bergerak secara fisik (Anda tekan gas mobile)
-            -- Magnitude > 1 artinya mobil mulai jalan sedikit
-            local isMovingPhysically = seat.AssemblyLinearVelocity.Magnitude > 1
+            -- Ambil kecepatan asli mobil dari sistem game
+            local velocity = seat.AssemblyLinearVelocity
+            local horizontalSpeed = Vector3.new(velocity.X, 0, velocity.Z).Magnitude
             
-            if isMovingPhysically then
-                -- Menambah kecepatan secara bertahap
+            -- DETEKSI: Jika mobil mulai jalan (Anda tekan tombol gas game)
+            if horizontalSpeed > 3 then 
+                -- Tentukan arah maju atau mundur agar tidak salah dorong
+                local dot = seat.CFrame.LookVector:Dot(velocity.Unit)
+                local direction = dot > 0 and 1 or -1
+                
+                -- Tambah boost secara agresif hingga 400
                 if _G.CurrentSpeed < _G.MaxPower then
-                    _G.CurrentSpeed = _G.CurrentSpeed + 2.5 
+                    _G.CurrentSpeed = _G.CurrentSpeed + 4 
                 end
                 
-                -- Tentukan arah gerak (Maju atau Mundur) berdasarkan arah velocity saat ini
-                local dotProduct = seat.CFrame.LookVector:Dot(seat.AssemblyLinearVelocity.Unit)
-                local direction = dotProduct > 0 and 1 or -1
+                -- Terapkan kecepatan baru
+                local moveVec = seat.CFrame.LookVector * (direction * _G.CurrentSpeed)
                 
-                -- Berikan dorongan ekstra (Tanpa mengganggu gravitasi Y)
-                local forwardVel = seat.CFrame.LookVector * (direction * _G.CurrentSpeed)
-                seat.AssemblyLinearVelocity = Vector3.new(forwardVel.X, seat.AssemblyLinearVelocity.Y, forwardVel.Z)
+                -- ANTI-FLY: Tetap gunakan velocity.Y asli agar gravitasi tetap ada
+                seat.AssemblyLinearVelocity = Vector3.new(moveVec.X, velocity.Y, moveVec.Z)
             else
-                -- Jika mobil diam (tidak tekan gas), turunkan boost perlahan
+                -- Jika mobil melambat/berhenti (Anda lepas gas game), matikan boost
                 _G.CurrentSpeed = math.max(0, _G.CurrentSpeed - 10)
             end
         else
