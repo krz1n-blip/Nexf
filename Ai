@@ -1,15 +1,15 @@
--- // STABLE MOBILE ACCEL (ANTI-BRUTAL & AUTO-STOP) //
+-- // REALISTIC MOBILE ACCEL (SMOOTH & STABLE 2026) //
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local LocalPlayer = Players.LocalPlayer
 
 _G.AccelEnabled = false
-_G.MaxSpeed = 400 -- Batas kecepatan (tidak brutal)
-_G.BoostPower = 2 -- Tambahan kecepatan tiap frame (Halus)
+_G.MaxSpeed = 220 -- Batas kecepatan diturunkan agar tidak nembus 500
+_G.BoostPower = 0.35 -- Dorongan diperkecil agar sangat halus
 _G.IsWPressed = false
 
--- // UI SETUP //
+-- // SETUP UI //
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 if PlayerGui:FindFirstChild("AccelGui") then PlayerGui.AccelGui:Destroy() end
 
@@ -18,9 +18,9 @@ ScreenGui.Name = "AccelGui"
 local Btn = Instance.new("TextButton", ScreenGui)
 Btn.Size = UDim2.new(0, 150, 0, 50)
 Btn.Position = UDim2.new(0.05, 0, 0.4, 0)
-Btn.Text = "BOOST: OFF"
-Btn.BackgroundColor3 = Color3.fromRGB(30,30,30)
-Btn.TextColor3 = Color3.new(1,1,1)
+Btn.Text = "SOFT BOOST: OFF"
+Btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Btn.TextColor3 = Color3.new(1, 1, 1)
 Instance.new("UICorner", Btn)
 
 local function StopW()
@@ -32,8 +32,8 @@ end
 
 Btn.Activated:Connect(function()
     _G.AccelEnabled = not _G.AccelEnabled
-    Btn.Text = "BOOST: " .. (_G.AccelEnabled and "ON" or "OFF")
-    Btn.BackgroundColor3 = _G.AccelEnabled and Color3.fromRGB(0, 200, 255) or Color3.fromRGB(30,30,30)
+    Btn.Text = "SOFT BOOST: " .. (_G.AccelEnabled and "ON" or "OFF")
+    Btn.BackgroundColor3 = _G.AccelEnabled and Color3.fromRGB(0, 200, 255) or Color3.fromRGB(30, 30, 30)
     if not _G.AccelEnabled then StopW() end
 end)
 
@@ -44,34 +44,31 @@ RunService.Heartbeat:Connect(function()
         local seat = char and char:FindFirstChildOfClass("Humanoid") and char:FindFirstChildOfClass("Humanoid").SeatPart
         
         if seat and seat:IsA("VehicleSeat") then
-            -- Cek apakah Anda sedang menekan gas di layar (Throttle tidak nol)
-            -- Atau cek jika mobil bergerak karena dorongan awal
             local isMobileGasPressed = seat.Throttle ~= 0
             local speed = seat.AssemblyLinearVelocity.Magnitude
             
             if isMobileGasPressed then
-                -- 1. Tekan W Virtual
+                -- 1. Simulasi W Virtual
                 if not _G.IsWPressed then
                     VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.W, false, game)
                     _G.IsWPressed = true
                 end
                 
-                -- 2. Tambahkan Kecepatan secara LINEAR (Tidak Brutal)
+                -- 2. Tambahan Kecepatan Sangat Halus
                 if speed < _G.MaxSpeed then
-                    local forwardDir = seat.CFrame.LookVector
-                    -- Dorongan konstan +2, bukan dikali (multiplier) agar tidak liar
-                    seat.AssemblyLinearVelocity = seat.AssemblyLinearVelocity + (forwardDir * _G.BoostPower)
+                    -- Dorongan linear yang sangat kecil
+                    seat.AssemblyLinearVelocity = seat.AssemblyLinearVelocity + (seat.CFrame.LookVector * _G.BoostPower)
                 end
                 
-                -- 3. Downforce agar tetap nempel tanah
+                -- 3. Downforce Ringan agar ban tidak slip
                 local vel = seat.AssemblyLinearVelocity
-                seat.AssemblyLinearVelocity = Vector3.new(vel.X, -15, vel.Z)
+                seat.AssemblyLinearVelocity = Vector3.new(vel.X, -5, vel.Z)
             else
-                -- JIKA LEPAS GAS: Langsung stop W dan rem halus
+                -- Langsung berhenti saat jempol lepas dari tombol gas
                 StopW()
-                if speed > 5 then
-                    -- Berikan efek pengereman agar tidak meluncur abadi
-                    seat.AssemblyLinearVelocity = seat.AssemblyLinearVelocity * 0.95
+                -- Efek pengereman alami
+                if speed > 1 then
+                    seat.AssemblyLinearVelocity = seat.AssemblyLinearVelocity * 0.98
                 end
             end
         else
