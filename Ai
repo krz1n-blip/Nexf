@@ -1,38 +1,36 @@
--- Tambahkan ini di bagian atas skrip
-local ControlModule = require(LocalPlayer:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule")):GetControls()
+-- // MOBILE SMOOTH ACCEL (OPTIMIZED FOR TABLET) //
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
 
-RunService.Heartbeat:Connect(function()
-    if _G.AccelEnabled then
-        local char = LocalPlayer.Character
-        local hum = char and char:FindFirstChildOfClass("Humanoid")
-        local seat = hum and hum.SeatPart
-        
-        if seat and seat:IsA("VehicleSeat") then
-            -- Mendeteksi arah gerak dari Joystick Tablet
-            local moveVector = ControlModule:GetMoveVector()
-            local isMovingForward = moveVector.Z < -0.1 -- Jika joystick didorong ke depan
-            
-            if isMovingForward then
-                if _G.CurrentSpeed < _G.MaxPower then
-                    _G.CurrentSpeed = _G.CurrentSpeed + 2 
-                end
-                
-                -- Gunakan gaya Horizontal saja
-                local forwardVel = seat.CFrame.LookVector * _G.CurrentSpeed
-                seat.AssemblyLinearVelocity = Vector3.new(forwardVel.X, seat.AssemblyLinearVelocity.Y, forwardVel.Z)
-            else
-                _G.CurrentSpeed = math.max(0, _G.CurrentSpeed - 5)
-            end
-        end
-    end
+-- Mengambil kontrol gerakan Joystick Mobile
+local PlayerModule = require(LocalPlayer:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule"))
+local ControlModule = PlayerModule:GetControls()
+
+_G.AccelEnabled = false
+_G.MaxPower = 400 -- Kecepatan maksimal ditingkatkan ke 400
+_G.CurrentSpeed = 0 
+
+-- // GUI SETUP //
+local ScreenGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
+local Btn = Instance.new("TextButton", ScreenGui)
+Btn.Size = UDim2.new(0, 160, 0, 50)
+Btn.Position = UDim2.new(0.05, 0, 0.4, 0)
+Btn.Text = "ACCEL MOD: OFF"
+Btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Btn.TextColor3 = Color3.new(1, 1, 1)
+Btn.Font = Enum.Font.SourceSansBold
+Btn.TextSize = 18
+Instance.new("UICorner", Btn)
+
+Btn.MouseButton1Click:Connect(function()
+    _G.AccelEnabled = not _G.AccelEnabled
+    Btn.Text = "ACCEL MOD: " .. (_G.AccelEnabled and "ON" or "OFF")
+    Btn.BackgroundColor3 = _G.AccelEnabled and Color3.fromRGB(0, 200, 255) or Color3.fromRGB(30, 30, 30)
+    if not _G.AccelEnabled then _G.CurrentSpeed = 0 end
 end)
 
-
--- Tambahkan variabel ini di bagian atas skrip
-local BodyVelocity = Instance.new("LinearVelocity")
-local Attachment = Instance.new("Attachment")
-BodyVelocity.MaxForce = 0 -- Mulai dengan 0 agar tidak langsung melesat
-
+-- // LOGIKA PERGERAKAN //
 RunService.Heartbeat:Connect(function()
     if _G.AccelEnabled then
         local char = LocalPlayer.Character
@@ -40,35 +38,36 @@ RunService.Heartbeat:Connect(function()
         local seat = hum and hum.SeatPart
         
         if seat and seat:IsA("VehicleSeat") then
-            -- Pasang attachment jika belum ada
-            if not Attachment.Parent or Attachment.Parent ~= seat then
-                Attachment.Parent = seat
-                BodyVelocity.Parent = seat
-                BodyVelocity.Attachment0 = Attachment
-                BodyVelocity.RelativeTo = Enum.ActuatorRelativeTo.World
-            end
-
-            -- Logika Kecepatan
-            if seat.Throttle ~= 0 then
+            -- Mendeteksi input Joystick (Z < -0.1 berarti joystick didorong ke depan)
+            local moveVector = ControlModule:GetMoveVector()
+            local isMoving = moveVector.Magnitude > 0.1
+            
+            if isMoving then
+                -- Menentukan arah (Maju atau Mundur berdasarkan joystick)
+                local direction = moveVector.Z < 0 and 1 or -1
+                
+                -- Akselerasi bertahap
                 if _G.CurrentSpeed < _G.MaxPower then
-                    _G.CurrentSpeed = _G.CurrentSpeed + 2 
+                    _G.CurrentSpeed = _G.CurrentSpeed + 2.5 -- Kecepatan bertambah tiap frame
                 end
                 
-                -- Gunakan gaya hanya pada arah Horizontal (X, Z)
-                local moveDir = seat.CFrame.LookVector * (seat.Throttle * _G.CurrentSpeed)
-                BodyVelocity.VectorVelocity = Vector3.new(moveDir.X, seat.AssemblyLinearVelocity.Y, moveDir.Z)
-                BodyVelocity.MaxForce = 50000 -- Berikan tenaga
+                -- ANTI-FLY: Ambil posisi LookVector tapi biarkan Y (gravitasi) tetap asli
+                local vel = seat.CFrame.LookVector * (direction * _G.CurrentSpeed)
+                local currentY = seat.AssemblyLinearVelocity.Y -- Gravitasi agar tidak terbang
+                
+                seat.AssemblyLinearVelocity = Vector3.new(vel.X, currentY, vel.Z)
             else
-                -- Rem halus saat lepas gas
+                -- Perlambat perlahan jika joystick dilepas
                 _G.CurrentSpeed = math.max(0, _G.CurrentSpeed - 5)
-                if _G.CurrentSpeed == 0 then
-                    BodyVelocity.MaxForce = 0
+                
+                -- Jika hampir berhenti, biarkan fisika asli game yang bekerja
+                if _G.CurrentSpeed < 5 then
+                    _G.CurrentSpeed = 0
                 end
             end
         else
-            BodyVelocity.MaxForce = 0 -- Matikan jika turun dari mobil
+            -- Reset jika turun dari kendaraan
+            _G.CurrentSpeed = 0
         end
-    else
-        BodyVelocity.MaxForce = 0
     end
 end)
