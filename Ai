@@ -1,47 +1,26 @@
--- // MOBILE ACCEL FIX (PASTI MUNCUL DI TABLET) //
+-- // MOBILE MOTION-BASED ACCEL (ANTI-W KEY) //
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
-
--- Tunggu PlayerGui dimuat sepenuhnya
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
-
--- Mengambil kontrol Joystick Mobile
-local PlayerModule = require(LocalPlayer:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule"))
-local ControlModule = PlayerModule:GetControls()
 
 _G.AccelEnabled = false
 _G.MaxPower = 400 
 _G.CurrentSpeed = 0 
 
--- Hapus GUI lama jika ada agar tidak tumpang tindih
-if PlayerGui:FindFirstChild("AccelGui") then
-    PlayerGui.AccelGui:Destroy()
-end
-
--- // SETUP GUI DI PLAYERGUI (BUKAN CORE_GUI) //
-local ScreenGui = Instance.new("ScreenGui")
+-- // UI SETUP //
+local ScreenGui = Instance.new("ScreenGui", PlayerGui)
 ScreenGui.Name = "AccelGui"
-ScreenGui.Parent = PlayerGui
-ScreenGui.ResetOnSpawn = false -- Agar tombol tidak hilang saat mati
-
-local Btn = Instance.new("TextButton")
-Btn.Name = "AccelButton"
+local Btn = Instance.new("TextButton", ScreenGui)
 Btn.Size = UDim2.new(0, 150, 0, 50)
--- Posisi disesuaikan agar tidak tertutup joystick (Kiri agak tengah)
-Btn.Position = UDim2.new(0.05, 0, 0.4, 0) 
+Btn.Position = UDim2.new(0.05, 0, 0.4, 0)
 Btn.Text = "ACCEL: OFF"
 Btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 Btn.TextColor3 = Color3.new(1, 1, 1)
 Btn.Font = Enum.Font.SourceSansBold
 Btn.TextSize = 20
-Btn.Parent = ScreenGui
+Instance.new("UICorner", Btn)
 
-local Corner = Instance.new("UICorner")
-Corner.CornerRadius = UDim.new(0, 8)
-Corner.Parent = Btn
-
--- Gunakan 'Activated' untuk respons sentuhan terbaik di Tablet
 Btn.Activated:Connect(function()
     _G.AccelEnabled = not _G.AccelEnabled
     Btn.Text = "ACCEL: " .. (_G.AccelEnabled and "ON" or "OFF")
@@ -49,7 +28,7 @@ Btn.Activated:Connect(function()
     if not _G.AccelEnabled then _G.CurrentSpeed = 0 end
 end)
 
--- // LOGIKA GERAK JOYSTICK //
+-- // LOGIKA DETEKSI GERAKAN FISIK //
 RunService.Heartbeat:Connect(function()
     if _G.AccelEnabled then
         local char = LocalPlayer.Character
@@ -57,19 +36,26 @@ RunService.Heartbeat:Connect(function()
         local seat = hum and hum.SeatPart
         
         if seat and seat:IsA("VehicleSeat") then
-            local moveVector = ControlModule:GetMoveVector()
-            local isMoving = moveVector.Magnitude > 0.1
+            -- Cek apakah mobil bergerak secara fisik (Anda tekan gas mobile)
+            -- Magnitude > 1 artinya mobil mulai jalan sedikit
+            local isMovingPhysically = seat.AssemblyLinearVelocity.Magnitude > 1
             
-            if isMoving then
-                local direction = moveVector.Z < 0 and 1 or -1
+            if isMovingPhysically then
+                -- Menambah kecepatan secara bertahap
                 if _G.CurrentSpeed < _G.MaxPower then
-                    _G.CurrentSpeed = _G.CurrentSpeed + 3 -- Akselerasi sedikit lebih cepat
+                    _G.CurrentSpeed = _G.CurrentSpeed + 2.5 
                 end
                 
-                local vel = seat.CFrame.LookVector * (direction * _G.CurrentSpeed)
-                seat.AssemblyLinearVelocity = Vector3.new(vel.X, seat.AssemblyLinearVelocity.Y, vel.Z)
+                -- Tentukan arah gerak (Maju atau Mundur) berdasarkan arah velocity saat ini
+                local dotProduct = seat.CFrame.LookVector:Dot(seat.AssemblyLinearVelocity.Unit)
+                local direction = dotProduct > 0 and 1 or -1
+                
+                -- Berikan dorongan ekstra (Tanpa mengganggu gravitasi Y)
+                local forwardVel = seat.CFrame.LookVector * (direction * _G.CurrentSpeed)
+                seat.AssemblyLinearVelocity = Vector3.new(forwardVel.X, seat.AssemblyLinearVelocity.Y, forwardVel.Z)
             else
-                _G.CurrentSpeed = math.max(0, _G.CurrentSpeed - 5)
+                -- Jika mobil diam (tidak tekan gas), turunkan boost perlahan
+                _G.CurrentSpeed = math.max(0, _G.CurrentSpeed - 10)
             end
         else
             _G.CurrentSpeed = 0
