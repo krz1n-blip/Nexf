@@ -4,25 +4,24 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 local LocalPlayer = Players.LocalPlayer
 
 _G.AccelEnabled = false
-_G.TargetSpeed = 400 -- << SEKARANG ADA BATAS SPEEDNYA (Bisa Anda ubah)
 
 -- // SETUP UI //
 local ScreenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
 local Btn = Instance.new("TextButton", ScreenGui)
 Btn.Size = UDim2.new(0, 150, 0, 50)
 Btn.Position = UDim2.new(0.05, 0, 0.4, 0)
-Btn.Text = "HYPER-W: OFF"
+Btn.Text = "AUTO-W: OFF"
 Btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 Btn.TextColor3 = Color3.new(1, 1, 1)
 Instance.new("UICorner", Btn)
 
 Btn.Activated:Connect(function()
     _G.AccelEnabled = not _G.AccelEnabled
-    Btn.Text = "HYPER-W: " .. (_G.AccelEnabled and "ON" or "OFF")
-    Btn.BackgroundColor3 = _G.AccelEnabled and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(30, 30, 30)
+    Btn.Text = "AUTO-W: " .. (_G.AccelEnabled and "ON" or "OFF")
+    Btn.BackgroundColor3 = _G.AccelEnabled and Color3.fromRGB(0, 200, 255) or Color3.fromRGB(30, 30, 30)
 end)
 
--- // LOGIKA SIMULASI KEYBOARD + BOOST //
+-- // LOGIKA SIMULASI KEYBOARD //
 local isWPressed = false
 
 RunService.Heartbeat:Connect(function()
@@ -32,31 +31,24 @@ RunService.Heartbeat:Connect(function()
         local seat = hum and hum.SeatPart
         
         if seat and seat:IsA("VehicleSeat") then
-            -- 1. DETEKSI GERAKAN
+            -- Cek apakah mobil bergerak (berarti Anda sedang tekan gas di layar)
+            -- Kita deteksi lewat kecepatan fisik (Magnitude)
             if seat.AssemblyLinearVelocity.Magnitude > 1 then
-                -- 2. SIMULASI TEKAN W
                 if not isWPressed then
+                    -- Simulasikan pencet tombol W (Keyboard Virtual)
                     VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.W, false, game)
                     isWPressed = true
                 end
-                
-                -- 3. TAMBAHAN SPEED (Agar lebih cepat dari mesin asli)
-                if seat.AssemblyLinearVelocity.Magnitude < _G.TargetSpeed then
-                    -- Menambah kecepatan 4% setiap frame secara eksponensial
-                    seat.AssemblyLinearVelocity = seat.AssemblyLinearVelocity * 1.04
-                    
-                    -- Menjaga agar tidak terbang (Downforce)
-                    local v = seat.AssemblyLinearVelocity
-                    seat.AssemblyLinearVelocity = Vector3.new(v.X, -20, v.Z)
-                end
             else
                 if isWPressed then
+                    -- Lepas tombol W jika mobil berhenti
                     VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.W, false, game)
                     isWPressed = false
                 end
             end
         end
     else
+        -- Jika mod dimatikan, pastikan W terlepas
         if isWPressed then
             VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.W, false, game)
             isWPressed = false
