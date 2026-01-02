@@ -1,10 +1,12 @@
--- // FINAL BRUTE ACCEL 2026 (MOBILE OPTIMIZED) //
+-- // HYBRID GAS MOD (2026) //
+-- // Metode: Paksa Velocity + Kendali Stir Manual //
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
 _G.AccelEnabled = false
-_G.Power = 10 -- Kekuatan dorongan per frame (Ubah jika terlalu pelan)
+_G.Power = 400 -- Angka kecepatan yang tadi berhasil (atur di sini)
 
 local ScreenGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
 local Btn = Instance.new("TextButton", ScreenGui)
@@ -25,16 +27,21 @@ RunService.Heartbeat:Connect(function()
     if _G.AccelEnabled then
         local char = LocalPlayer.Character
         local hum = char and char:FindFirstChildOfClass("Humanoid")
+        
         if hum and hum.SeatPart and hum.SeatPart:IsA("VehicleSeat") then
             local seat = hum.SeatPart
             
-            -- Mendeteksi input Gas dari Tablet (Throttle)
+            -- KUNCI PENGENDALIAN:
+            -- Hanya bekerja jika Anda menekan tombol gas di layar tablet (Throttle)
             if seat.Throttle ~= 0 then
-                -- METODE INJEKSI: Menambah Velocity yang sudah ada secara paksa
-                -- Ini akan menembus limit server karena kita menambahnya setiap milidetik
-                local boost = seat.CFrame.LookVector * (seat.Throttle * _G.Power)
-                seat.AssemblyLinearVelocity = seat.AssemblyLinearVelocity + boost
+                -- seat.CFrame.LookVector: Mengikuti arah moncong mobil (Bisa disetir)
+                -- seat.Throttle: Mengikuti gas maju/mundur dari jempol Anda
+                seat.AssemblyLinearVelocity = seat.CFrame.LookVector * (seat.Throttle * _G.Power)
+            else
+                -- Jika gas dilepas, biarkan rem/gesekan alami game yang bekerja
+                -- Ini agar mobil tidak meluncur terus tanpa henti
             end
         end
     end
 end)
+      
