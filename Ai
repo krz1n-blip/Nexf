@@ -1,28 +1,67 @@
--- // THE ULTIMATE MOBILE ACCEL (FIXED SINKRONISASI 2026) //
+-- // THE ULTIMATE MOBILE ACCEL (DRAGGABLE VERSION 2026) //
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
+local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
 _G.AccelEnabled = false
 _G.SpeedTarget = 550
 _G.IsWPressed = false
 
--- // RE-SETUP UI //
+-- // 1. RE-SETUP UI //
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 if PlayerGui:FindFirstChild("AccelGui") then PlayerGui.AccelGui:Destroy() end
 
 local ScreenGui = Instance.new("ScreenGui", PlayerGui)
 ScreenGui.Name = "AccelGui"
+
 local Btn = Instance.new("TextButton", ScreenGui)
 Btn.Size = UDim2.new(0, 150, 0, 50)
 Btn.Position = UDim2.new(0.05, 0, 0.4, 0)
 Btn.Text = "BOOST: OFF"
 Btn.BackgroundColor3 = Color3.fromRGB(30,30,30)
 Btn.TextColor3 = Color3.new(1,1,1)
+Btn.Font = Enum.Font.SourceSansBold
+Btn.TextSize = 18
+Btn.ClipsDescendants = true
 Instance.new("UICorner", Btn)
 
--- Fungsi untuk melepas tombol W secara paksa (Mencegah macet)
+-- // 2. LOGIKA DRAGGABLE (BISA DIGESER DI TABLET) //
+local dragging, dragInput, dragStart, startPos
+
+local function update(input)
+    local delta = input.Position - dragStart
+    Btn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+Btn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = Btn.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+Btn.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        update(input)
+    end
+end)
+
+-- // 3. LOGIKA ACCEL //
 local function ForceReleaseW()
     VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.W, false, game)
     _G.IsWPressed = false
@@ -34,11 +73,10 @@ Btn.Activated:Connect(function()
     Btn.BackgroundColor3 = _G.AccelEnabled and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(30,30,30)
     
     if not _G.AccelEnabled then
-        ForceReleaseW() -- Pastikan W terlepas saat mod dimatikan
+        ForceReleaseW()
     end
 end)
 
--- // MAIN LOGIC (Menggunakan Heartbeat agar lebih sinkron dengan input) //
 RunService.Heartbeat:Connect(function()
     if _G.AccelEnabled then
         local char = LocalPlayer.Character
@@ -49,40 +87,26 @@ RunService.Heartbeat:Connect(function()
             local velocity = seat.AssemblyLinearVelocity
             local speed = velocity.Magnitude
             
-            -- DETEKSI: Jika Anda menekan gas di HP (Throttle Berubah) ATAU mobil bergerak
             if seat.Throttle ~= 0 or speed > 1 then
-                
-                -- 1. SIMULASI W
                 if not _G.IsWPressed then
                     VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.W, false, game)
                     _G.IsWPressed = true
                 end
                 
-                -- 2. BOOST KECEPATAN (Hanya aktif jika bergerak maju)
                 if speed < _G.SpeedTarget then
                     local multiplier = 1.04
-                    -- Gunakan CFrame agar dorongan searah moncong mobil, bukan arah gerak liar
                     local boost = seat.CFrame.LookVector * (speed * multiplier)
-                    
-                    -- Terapkan dengan Downforce agar tidak terbang
                     seat.AssemblyLinearVelocity = Vector3.new(boost.X, -20, boost.Z)
                 end
             else
-                -- Jika mobil diam total, lepaskan W
-                if _G.IsWPressed then
-                    ForceReleaseW()
-                end
+                if _G.IsWPressed then ForceReleaseW() end
             end
         else
-            -- Jika turun dari mobil, lepaskan W
-            if _G.IsWPressed then
-                ForceReleaseW()
-            end
+            if _G.IsWPressed then ForceReleaseW() end
         end
     end
 end)
 
--- RESET OTOMATIS SAAT KARAKTER MATI
 LocalPlayer.CharacterAdded:Connect(function()
     ForceReleaseW()
     _G.AccelEnabled = false
