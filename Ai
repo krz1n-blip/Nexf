@@ -1,29 +1,44 @@
+-- // THE ULTIMATE MOBILE ACCEL (FIXED SINKRONISASI 2026) //
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local LocalPlayer = Players.LocalPlayer
 
 _G.AccelEnabled = false
+_G.SpeedTarget = 600 
+_G.IsWPressed = false
 
--- // SETUP UI //
-local ScreenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+-- // RE-SETUP UI //
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+if PlayerGui:FindFirstChild("AccelGui") then PlayerGui.AccelGui:Destroy() end
+
+local ScreenGui = Instance.new("ScreenGui", PlayerGui)
+ScreenGui.Name = "AccelGui"
 local Btn = Instance.new("TextButton", ScreenGui)
 Btn.Size = UDim2.new(0, 150, 0, 50)
 Btn.Position = UDim2.new(0.05, 0, 0.4, 0)
-Btn.Text = "AUTO-W: OFF"
-Btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-Btn.TextColor3 = Color3.new(1, 1, 1)
+Btn.Text = "BOOST: OFF"
+Btn.BackgroundColor3 = Color3.fromRGB(30,30,30)
+Btn.TextColor3 = Color3.new(1,1,1)
 Instance.new("UICorner", Btn)
+
+-- Fungsi untuk melepas tombol W secara paksa (Mencegah macet)
+local function ForceReleaseW()
+    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.W, false, game)
+    _G.IsWPressed = false
+end
 
 Btn.Activated:Connect(function()
     _G.AccelEnabled = not _G.AccelEnabled
-    Btn.Text = "AUTO-W: " .. (_G.AccelEnabled and "ON" or "OFF")
-    Btn.BackgroundColor3 = _G.AccelEnabled and Color3.fromRGB(0, 200, 255) or Color3.fromRGB(30, 30, 30)
+    Btn.Text = "BOOST: " .. (_G.AccelEnabled and "ON" or "OFF")
+    Btn.BackgroundColor3 = _G.AccelEnabled and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(30,30,30)
+    
+    if not _G.AccelEnabled then
+        ForceReleaseW() -- Pastikan W terlepas saat mod dimatikan
+    end
 end)
 
--- // LOGIKA SIMULASI KEYBOARD //
-local isWPressed = false
-
+-- // MAIN LOGIC (Menggunakan Heartbeat agar lebih sinkron dengan input) //
 RunService.Heartbeat:Connect(function()
     if _G.AccelEnabled then
         local char = LocalPlayer.Character
@@ -31,27 +46,45 @@ RunService.Heartbeat:Connect(function()
         local seat = hum and hum.SeatPart
         
         if seat and seat:IsA("VehicleSeat") then
-            -- Cek apakah mobil bergerak (berarti Anda sedang tekan gas di layar)
-            -- Kita deteksi lewat kecepatan fisik (Magnitude)
-            if seat.AssemblyLinearVelocity.Magnitude > 1 then
-                if not isWPressed then
-                    -- Simulasikan pencet tombol W (Keyboard Virtual)
+            local velocity = seat.AssemblyLinearVelocity
+            local speed = velocity.Magnitude
+            
+            -- DETEKSI: Jika Anda menekan gas di HP (Throttle Berubah) ATAU mobil bergerak
+            if seat.Throttle ~= 0 or speed > 1 then
+                
+                -- 1. SIMULASI W
+                if not _G.IsWPressed then
                     VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.W, false, game)
-                    isWPressed = true
+                    _G.IsWPressed = true
+                end
+                
+                -- 2. BOOST KECEPATAN (Hanya aktif jika bergerak maju)
+                if speed < _G.SpeedTarget then
+                    local multiplier = 1.04
+                    -- Gunakan CFrame agar dorongan searah moncong mobil, bukan arah gerak liar
+                    local boost = seat.CFrame.LookVector * (speed * multiplier)
+                    
+                    -- Terapkan dengan Downforce agar tidak terbang
+                    seat.AssemblyLinearVelocity = Vector3.new(boost.X, -20, boost.Z)
                 end
             else
-                if isWPressed then
-                    -- Lepas tombol W jika mobil berhenti
-                    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.W, false, game)
-                    isWPressed = false
+                -- Jika mobil diam total, lepaskan W
+                if _G.IsWPressed then
+                    ForceReleaseW()
                 end
             end
-        end
-    else
-        -- Jika mod dimatikan, pastikan W terlepas
-        if isWPressed then
-            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.W, false, game)
-            isWPressed = false
+        else
+            -- Jika turun dari mobil, lepaskan W
+            if _G.IsWPressed then
+                ForceReleaseW()
+            end
         end
     end
+end)
+
+-- RESET OTOMATIS SAAT KARAKTER MATI
+LocalPlayer.CharacterAdded:Connect(function()
+    ForceReleaseW()
+    _G.AccelEnabled = false
+    Btn.Text = "BOOST: OFF"
 end)
