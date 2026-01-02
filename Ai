@@ -1,45 +1,28 @@
--- // HYBRID MOBILE GAS MOD (FIXED FOR TABLET 2026) //
+-- // SMOOTH MOBILE ACCEL (ANTI-FLY) //
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
 _G.AccelEnabled = false
-_G.Power = 300 -- Kekuatan kecepatan
+_G.MaxPower = 350 -- Kecepatan maksimal yang ingin dicapai
+_G.CurrentSpeed = 0 -- Mulai dari 0 agar tidak kaget/terbang
 
 -- GUI Setup
 local ScreenGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
 local Btn = Instance.new("TextButton", ScreenGui)
 Btn.Size = UDim2.new(0, 150, 0, 50)
 Btn.Position = UDim2.new(0.05, 0, 0.4, 0)
-Btn.Text = "MOBILE GAS: OFF"
+Btn.Text = "ACCEL MOD: OFF"
 Btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 Btn.TextColor3 = Color3.new(1, 1, 1)
 Instance.new("UICorner", Btn)
 
 Btn.MouseButton1Click:Connect(function()
     _G.AccelEnabled = not _G.AccelEnabled
-    Btn.Text = "MOBILE GAS: " .. (_G.AccelEnabled and "ON" or "OFF")
-    Btn.BackgroundColor3 = _G.AccelEnabled and Color3.fromRGB(255, 170, 0) or Color3.fromRGB(30, 30, 30)
+    Btn.Text = "ACCEL MOD: " .. (_G.AccelEnabled and "ON" or "OFF")
+    Btn.BackgroundColor3 = _G.AccelEnabled and Color3.fromRGB(0, 200, 255) or Color3.fromRGB(30, 30, 30)
+    if not _G.AccelEnabled then _G.CurrentSpeed = 0 end
 end)
-
--- Fungsi untuk cek apakah pemain sedang menekan gas di layar tablet
-local function IsMobileGasPressed(seat)
-    -- 1. Cek Throttle standar (untuk tablet yang mendukung)
-    if seat.Throttle ~= 0 then return seat.Throttle end
-    
-    -- 2. Cek via PlayerGui TouchControls (untuk A-Chassis/Mobile Custom)
-    local touchGui = LocalPlayer.PlayerGui:FindFirstChild("TouchGui")
-    if touchGui then
-        local touchControl = touchGui:FindFirstChild("TouchControlFrame")
-        if touchControl then
-            local jumpButton = touchControl:FindFirstChild("JumpButton") -- Sering jadi gas di beberapa sistem
-            local dynamicThumb = touchControl:FindFirstChild("DynamicJoystick")
-            -- Tambahkan logika deteksi spesifik jika perlu
-        end
-    end
-    
-    return 0
-end
 
 RunService.Heartbeat:Connect(function()
     if _G.AccelEnabled then
@@ -49,14 +32,19 @@ RunService.Heartbeat:Connect(function()
         if hum and hum.SeatPart and hum.SeatPart:IsA("VehicleSeat") then
             local seat = hum.SeatPart
             
-            -- Deteksi pergerakan: Jika mobil mulai bergerak (dari tombol gas layar), kita dorong!
-            -- Jika kecepatan asli > 1 (artinya Anda sedang gas di layar), script akan membantu mendorongnya.
+            -- Deteksi jika Anda menekan gas di tablet (Kecepatan asli > 2)
             if seat.AssemblyLinearVelocity.Magnitude > 2 or seat.Throttle ~= 0 then
-                -- Menentukan arah (jika mundur, dorong ke belakang)
-                local direction = seat.Throttle
-                if direction == 0 then direction = 1 end -- Default maju jika sudah mulai jalan
+                -- Menambah kecepatan secara bertahap (Akselerasi halus)
+                if _G.CurrentSpeed < _G.MaxPower then
+                    _G.CurrentSpeed = _G.CurrentSpeed + 2 -- Ditambah 2 setiap frame (tidak langsung 300)
+                end
                 
-                seat.AssemblyLinearVelocity = seat.CFrame.LookVector * (direction * _G.Power)
+                -- Memberikan dorongan sesuai arah mobil agar tidak terbang
+                local direction = seat.Throttle ~= 0 and seat.Throttle or 1
+                seat.AssemblyLinearVelocity = seat.CFrame.LookVector * (direction * _G.CurrentSpeed)
+            else
+                -- Jika gas dilepas, turunkan speed perlahan
+                _G.CurrentSpeed = math.max(0, _G.CurrentSpeed - 5)
             end
         end
     end
