@@ -1,46 +1,45 @@
--- // BRUTE FORCE ACCEL (TABLET OPTIMIZED 2026) //
+-- // MANUAL GAS BOOST (TABLET 2026) //
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
 _G.AccelEnabled = false
-_G.BoostMultiplier = 1.5 -- Kekuatan dorongan (naikkan pelan-pelan)
+_G.CurrentSpeed = 0
+_G.MaxSpeedLimit = 1000 -- Batas kecepatan maksimal yang kamu mau
 
--- GUI Minimalis
+-- GUI Setup
 local ScreenGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
 local Btn = Instance.new("TextButton", ScreenGui)
-Btn.Size = UDim2.new(0, 140, 0, 50)
+Btn.Size = UDim2.new(0, 150, 0, 50)
 Btn.Position = UDim2.new(0.05, 0, 0.3, 0)
-Btn.Text = "BOOST: OFF"
-Btn.BackgroundColor3 = Color3.fromRGB(50,50,50)
-Btn.TextColor3 = Color3.new(1,1,1)
+Btn.Text = "GAS MOD: OFF"
+Btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+Btn.TextColor3 = Color3.new(1, 1, 1)
 Instance.new("UICorner", Btn)
 
 Btn.MouseButton1Click:Connect(function()
     _G.AccelEnabled = not _G.AccelEnabled
-    Btn.Text = "BOOST: " .. (_G.AccelEnabled and "ON" or "OFF")
-    Btn.BackgroundColor3 = _G.AccelEnabled and Color3.fromRGB(200, 0, 0) or Color3.fromRGB(50,50,50)
+    Btn.Text = "GAS MOD: " .. (_G.AccelEnabled and "ON" or "OFF")
+    Btn.BackgroundColor3 = _G.AccelEnabled and Color3.fromRGB(0, 150, 255) or Color3.fromRGB(40, 40, 40)
 end)
 
--- LOGIKA PENEMBUS LIMIT
-RunService.Heartbeat:Connect(function()
+RunService.RenderStepped:Connect(function()
     if _G.AccelEnabled then
         local char = LocalPlayer.Character
-        local humanoid = char and char:FindFirstChild("Humanoid")
-        if humanoid and humanoid.SeatPart and humanoid.SeatPart:IsA("VehicleSeat") then
-            local seat = humanoid.SeatPart
+        local hum = char and char:FindFirstChild("Humanoid")
+        if hum and hum.SeatPart and hum.SeatPart:IsA("VehicleSeat") then
+            local seat = hum.SeatPart
             
-            -- Jika Anda menekan GAS di layar (Throttle maju atau mundur)
+            -- HANYA JALAN KALAU TOMBOL GAS DI LAYAR DITEKAN (Throttle)
             if seat.Throttle ~= 0 then
-                -- METODE: Secara paksa memindahkan posisi mobil ke depan sedikit demi sedikit
-                -- Ini akan menembus batas 271 tersebut
-                local speedIncr = seat.CFrame.LookVector * (seat.Throttle * _G.BoostMultiplier)
-                seat.AssemblyLinearVelocity = seat.AssemblyLinearVelocity + speedIncr
+                -- Menambah kecepatan secara bertahap (Akselerasi)
+                _G.CurrentSpeed = math.min(_G.CurrentSpeed + 5, _G.MaxSpeedLimit)
                 
-                -- Anti-Cap (Menghancurkan limitasi server)
-                if seat.AssemblyLinearVelocity.Magnitude > 250 then
-                    seat.CFrame = seat.CFrame + (seat.CFrame.LookVector * (seat.Throttle * _G.BoostMultiplier/2))
-                end
+                -- Memberikan dorongan kecepatan langsung
+                seat.AssemblyLinearVelocity = seat.CFrame.LookVector * (seat.Throttle * _G.CurrentSpeed)
+            else
+                -- Jika gas dilepas, reset akselerasi agar tidak loncat saat gas lagi
+                _G.CurrentSpeed = seat.AssemblyLinearVelocity.Magnitude
             end
         end
     end
