@@ -1,75 +1,65 @@
--- // CAR SPEED HUB 2026 //
+-- // MOBILE ACCEL BOOST 2026 //
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
 -- // 1. VARIABEL KONTROL
-_G.CarSpeedEnabled = false
-_G.SpeedPower = 200 -- Ubah angka ini untuk mengatur kecepatan (100-500)
+_G.AccelEnabled = false
+_G.BoostPower = 2.5 -- Kekuatan tambahan saat gas ditekan
+_G.MaxSpeedLimit = 600 -- Batas kecepatan maksimal baru
 
--- // 2. GUI SETUP
+-- // 2. GUI SETUP (Disesuaikan untuk Layar Tablet)
 local ScreenGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
 ScreenGui.ResetOnSpawn = false
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-MainFrame.Size = UDim2.new(0, 200, 0, 150)
-MainFrame.Position = UDim2.new(0.1, 0, 0.4, 0)
+MainFrame.Size = UDim2.new(0, 160, 0, 100)
+MainFrame.Position = UDim2.new(0.05, 0, 0.2, 0) -- Posisi kiri atas agar tidak ganggu jempol
 MainFrame.Active = true
 MainFrame.Draggable = true
 Instance.new("UICorner", MainFrame)
 
-local Title = Instance.new("TextLabel")
-Title.Parent = MainFrame
-Title.Size = UDim2.new(1, 0, 0, 40)
-Title.Text = "CAR SPEEDER"
-Title.TextColor3 = Color3.fromRGB(255, 255, 0)
-Title.BackgroundTransparency = 1
-Title.Font = Enum.Font.LuckiestGuy
-Title.TextSize = 20
+local AccelBtn = Instance.new("TextButton")
+AccelBtn.Parent = MainFrame
+AccelBtn.Size = UDim2.new(0.9, 0, 0, 60)
+AccelBtn.Position = UDim2.new(0.05, 0, 0.2, 0)
+AccelBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+AccelBtn.Text = "ACCEL: OFF"
+AccelBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+AccelBtn.Font = Enum.Font.FredokaOne
+AccelBtn.TextSize = 20
+Instance.new("UICorner", AccelBtn)
 
--- // 3. TOMBOL KECEPATAN
-local SpeedBtn = Instance.new("TextButton")
-SpeedBtn.Parent = MainFrame
-SpeedBtn.Size = UDim2.new(0.8, 0, 0, 40)
-SpeedBtn.Position = UDim2.new(0.1, 0, 0.4, 0)
-SpeedBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-SpeedBtn.Text = "Car Speed: OFF"
-SpeedBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-SpeedBtn.Font = Enum.Font.FredokaOne
-Instance.new("UICorner", SpeedBtn)
-
-SpeedBtn.MouseButton1Click:Connect(function()
-    _G.CarSpeedEnabled = not _G.CarSpeedEnabled
-    SpeedBtn.Text = "Car Speed: " .. (_G.CarSpeedEnabled and "ON" or "OFF")
-    SpeedBtn.BackgroundColor3 = _G.CarSpeedEnabled and Color3.fromRGB(255, 170, 0) or Color3.fromRGB(50, 50, 50)
+-- // 3. LOGIKA AKSELERASI TABLET
+AccelBtn.MouseButton1Click:Connect(function()
+    _G.AccelEnabled = not _G.AccelEnabled
+    AccelBtn.Text = "ACCEL: " .. (_G.AccelEnabled and "ON" or "OFF")
+    AccelBtn.BackgroundColor3 = _G.AccelEnabled and Color3.fromRGB(0, 180, 100) or Color3.fromRGB(50, 50, 50)
 end)
 
--- // 4. KONTROL INPUT (TEKAN E UNTUK BOOST)
-local TextInfo = Instance.new("TextLabel")
-TextInfo.Parent = MainFrame
-TextInfo.Size = UDim2.new(1, 0, 0, 30)
-TextInfo.Position = UDim2.new(0, 0, 0.75, 0)
-TextInfo.Text = "Kecepatan: " .. _G.SpeedPower
-TextInfo.TextColor3 = Color3.fromRGB(200, 200, 200)
-TextInfo.BackgroundTransparency = 1
-TextInfo.Font = Enum.Font.SourceSans
-TextInfo.TextSize = 14
-
--- // 5. LOGIKA INTI KECEPATAN
-RunService.Stepped:Connect(function()
-    if _G.CarSpeedEnabled then
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-            local seat = LocalPlayer.Character.Humanoid.SeatPart
+RunService.Heartbeat:Connect(function()
+    if _G.AccelEnabled then
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") then
+            local seat = char.Humanoid.SeatPart
             
-            -- Cek apakah kita sedang menyetir mobil
+            -- Pastikan Anda sedang duduk di kursi kemudi
             if seat and seat:IsA("VehicleSeat") then
-                -- Menambahkan kecepatan sesuai arah depan mobil
-                seat.AssemblyLinearVelocity = seat.CFrame.LookVector * _G.SpeedPower
+                -- Bypass limit standar mobil
+                seat.MaxSpeed = _G.MaxSpeedLimit
+                
+                -- Cek apakah jempol Anda menekan Gas di layar (Throttle != 0)
+                if seat.Throttle ~= 0 then
+                    -- Memberikan tambahan dorongan fisik sesuai arah mobil
+                    -- Ini akan membuat akselerasi terasa bertambah terus selama ditekan
+                    local currentVelocity = seat.AssemblyLinearVelocity
+                    if currentVelocity.Magnitude < _G.MaxSpeedLimit then
+                        seat.AssemblyLinearVelocity = currentVelocity + (seat.CFrame.LookVector * seat.Throttle * _G.BoostPower)
+                    end
+                end
             end
         end
     end
 end)
-
-print("Car Speed Script Loaded!")
