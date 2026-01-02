@@ -1,78 +1,57 @@
--- // THE ULTIMATE MOBILE ACCEL (STABLE 2026) //
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local LocalPlayer = Players.LocalPlayer
 
 _G.AccelEnabled = false
-_G.SpeedTarget = 400 -- Kecepatan target
-_G.IsWPressed = false
 
--- // RE-SETUP UI (PLAYERGUI) //
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
-if PlayerGui:FindFirstChild("AccelGui") then PlayerGui.AccelGui:Destroy() end
-
-local ScreenGui = Instance.new("ScreenGui", PlayerGui)
-ScreenGui.Name = "AccelGui"
+-- // SETUP UI //
+local ScreenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
 local Btn = Instance.new("TextButton", ScreenGui)
 Btn.Size = UDim2.new(0, 150, 0, 50)
 Btn.Position = UDim2.new(0.05, 0, 0.4, 0)
-Btn.Text = "BOOST: OFF"
-Btn.BackgroundColor3 = Color3.fromRGB(30,30,30)
-Btn.TextColor3 = Color3.new(1,1,1)
+Btn.Text = "AUTO-W: OFF"
+Btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Btn.TextColor3 = Color3.new(1, 1, 1)
 Instance.new("UICorner", Btn)
 
 Btn.Activated:Connect(function()
     _G.AccelEnabled = not _G.AccelEnabled
-    Btn.Text = "BOOST: " .. (_G.AccelEnabled and "ON" or "OFF")
-    Btn.BackgroundColor3 = _G.AccelEnabled and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(30,30,30)
+    Btn.Text = "AUTO-W: " .. (_G.AccelEnabled and "ON" or "OFF")
+    Btn.BackgroundColor3 = _G.AccelEnabled and Color3.fromRGB(0, 200, 255) or Color3.fromRGB(30, 30, 30)
 end)
 
--- // MAIN LOGIC //
-RunService.Stepped:Connect(function() -- Menggunakan Stepped lebih stabil untuk Fisika
+-- // LOGIKA SIMULASI KEYBOARD //
+local isWPressed = false
+
+RunService.Heartbeat:Connect(function()
     if _G.AccelEnabled then
         local char = LocalPlayer.Character
-        local seat = char and char:FindFirstChildOfClass("Humanoid") and char:FindFirstChildOfClass("Humanoid").SeatPart
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        local seat = hum and hum.SeatPart
         
         if seat and seat:IsA("VehicleSeat") then
-            -- Bypass Throttle agar mesin selalu panas
-            seat.Throttle = 1
-            
-            local speed = seat.AssemblyLinearVelocity.Magnitude
-            
-            -- Jika mobil bergerak (Anda gas di tablet)
-            if speed > 2 then
-                -- SIMULASI W (Ide Brilian Anda)
-                if not _G.IsWPressed then
+            -- Cek apakah mobil bergerak (berarti Anda sedang tekan gas di layar)
+            -- Kita deteksi lewat kecepatan fisik (Magnitude)
+            if seat.AssemblyLinearVelocity.Magnitude > 1 then
+                if not isWPressed then
+                    -- Simulasikan pencet tombol W (Keyboard Virtual)
                     VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.W, false, game)
-                    _G.IsWPressed = true
-                end
-                
-                -- BOOST KECEPATAN (Multiplier eksponensial)
-                if speed < _G.SpeedTarget then
-                    -- Menambah kecepatan tapi menjaga arah asli mobil
-                    local multiplier = 1.04 
-                    local currentVel = seat.AssemblyLinearVelocity
-                    
-                    -- Paksa arah tetap kedepan dan ban menempel tanah (Downforce)
-                    seat.AssemblyLinearVelocity = Vector3.new(
-                        currentVel.X * multiplier,
-                        -25, -- Downforce agar tidak terbang
-                        currentVel.Z * multiplier
-                    )
+                    isWPressed = true
                 end
             else
-                -- Jika mobil diam, lepas W
-                if _G.IsWPressed then
+                if isWPressed then
+                    -- Lepas tombol W jika mobil berhenti
                     VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.W, false, game)
-                    _G.IsWPressed = false
+                    isWPressed = false
                 end
             end
         end
     else
-        if _G.IsWPressed then
+        -- Jika mod dimatikan, pastikan W terlepas
+        if isWPressed then
             VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.W, false, game)
-            _G.IsWPressed = false
+            isWPressed = false
         end
     end
 end)
