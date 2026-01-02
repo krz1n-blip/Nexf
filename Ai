@@ -1,3 +1,33 @@
+-- Tambahkan ini di bagian atas skrip
+local ControlModule = require(LocalPlayer:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule")):GetControls()
+
+RunService.Heartbeat:Connect(function()
+    if _G.AccelEnabled then
+        local char = LocalPlayer.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        local seat = hum and hum.SeatPart
+        
+        if seat and seat:IsA("VehicleSeat") then
+            -- Mendeteksi arah gerak dari Joystick Tablet
+            local moveVector = ControlModule:GetMoveVector()
+            local isMovingForward = moveVector.Z < -0.1 -- Jika joystick didorong ke depan
+            
+            if isMovingForward then
+                if _G.CurrentSpeed < _G.MaxPower then
+                    _G.CurrentSpeed = _G.CurrentSpeed + 2 
+                end
+                
+                -- Gunakan gaya Horizontal saja
+                local forwardVel = seat.CFrame.LookVector * _G.CurrentSpeed
+                seat.AssemblyLinearVelocity = Vector3.new(forwardVel.X, seat.AssemblyLinearVelocity.Y, forwardVel.Z)
+            else
+                _G.CurrentSpeed = math.max(0, _G.CurrentSpeed - 5)
+            end
+        end
+    end
+end)
+
+
 -- Tambahkan variabel ini di bagian atas skrip
 local BodyVelocity = Instance.new("LinearVelocity")
 local Attachment = Instance.new("Attachment")
