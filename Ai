@@ -1,63 +1,45 @@
--- // MOBILE ACCEL BOOST 2026 //
+-- // BRUTE FORCE ACCEL (TABLET OPTIMIZED 2026) //
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
--- // 1. VARIABEL KONTROL
 _G.AccelEnabled = false
-_G.BoostPower = 2.5 -- Kekuatan tambahan saat gas ditekan
-_G.MaxSpeedLimit = 600 -- Batas kecepatan maksimal baru
+_G.BoostMultiplier = 1.5 -- Kekuatan dorongan (naikkan pelan-pelan)
 
--- // 2. GUI SETUP (Disesuaikan untuk Layar Tablet)
+-- GUI Minimalis
 local ScreenGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
-ScreenGui.ResetOnSpawn = false
+local Btn = Instance.new("TextButton", ScreenGui)
+Btn.Size = UDim2.new(0, 140, 0, 50)
+Btn.Position = UDim2.new(0.05, 0, 0.3, 0)
+Btn.Text = "BOOST: OFF"
+Btn.BackgroundColor3 = Color3.fromRGB(50,50,50)
+Btn.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", Btn)
 
-local MainFrame = Instance.new("Frame")
-MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-MainFrame.Size = UDim2.new(0, 160, 0, 100)
-MainFrame.Position = UDim2.new(0.05, 0, 0.2, 0) -- Posisi kiri atas agar tidak ganggu jempol
-MainFrame.Active = true
-MainFrame.Draggable = true
-Instance.new("UICorner", MainFrame)
-
-local AccelBtn = Instance.new("TextButton")
-AccelBtn.Parent = MainFrame
-AccelBtn.Size = UDim2.new(0.9, 0, 0, 60)
-AccelBtn.Position = UDim2.new(0.05, 0, 0.2, 0)
-AccelBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-AccelBtn.Text = "ACCEL: OFF"
-AccelBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-AccelBtn.Font = Enum.Font.FredokaOne
-AccelBtn.TextSize = 20
-Instance.new("UICorner", AccelBtn)
-
--- // 3. LOGIKA AKSELERASI TABLET
-AccelBtn.MouseButton1Click:Connect(function()
+Btn.MouseButton1Click:Connect(function()
     _G.AccelEnabled = not _G.AccelEnabled
-    AccelBtn.Text = "ACCEL: " .. (_G.AccelEnabled and "ON" or "OFF")
-    AccelBtn.BackgroundColor3 = _G.AccelEnabled and Color3.fromRGB(0, 180, 100) or Color3.fromRGB(50, 50, 50)
+    Btn.Text = "BOOST: " .. (_G.AccelEnabled and "ON" or "OFF")
+    Btn.BackgroundColor3 = _G.AccelEnabled and Color3.fromRGB(200, 0, 0) or Color3.fromRGB(50,50,50)
 end)
 
+-- LOGIKA PENEMBUS LIMIT
 RunService.Heartbeat:Connect(function()
     if _G.AccelEnabled then
         local char = LocalPlayer.Character
-        if char and char:FindFirstChild("Humanoid") then
-            local seat = char.Humanoid.SeatPart
+        local humanoid = char and char:FindFirstChild("Humanoid")
+        if humanoid and humanoid.SeatPart and humanoid.SeatPart:IsA("VehicleSeat") then
+            local seat = humanoid.SeatPart
             
-            -- Pastikan Anda sedang duduk di kursi kemudi
-            if seat and seat:IsA("VehicleSeat") then
-                -- Bypass limit standar mobil
-                seat.MaxSpeed = _G.MaxSpeedLimit
+            -- Jika Anda menekan GAS di layar (Throttle maju atau mundur)
+            if seat.Throttle ~= 0 then
+                -- METODE: Secara paksa memindahkan posisi mobil ke depan sedikit demi sedikit
+                -- Ini akan menembus batas 271 tersebut
+                local speedIncr = seat.CFrame.LookVector * (seat.Throttle * _G.BoostMultiplier)
+                seat.AssemblyLinearVelocity = seat.AssemblyLinearVelocity + speedIncr
                 
-                -- Cek apakah jempol Anda menekan Gas di layar (Throttle != 0)
-                if seat.Throttle ~= 0 then
-                    -- Memberikan tambahan dorongan fisik sesuai arah mobil
-                    -- Ini akan membuat akselerasi terasa bertambah terus selama ditekan
-                    local currentVelocity = seat.AssemblyLinearVelocity
-                    if currentVelocity.Magnitude < _G.MaxSpeedLimit then
-                        seat.AssemblyLinearVelocity = currentVelocity + (seat.CFrame.LookVector * seat.Throttle * _G.BoostPower)
-                    end
+                -- Anti-Cap (Menghancurkan limitasi server)
+                if seat.AssemblyLinearVelocity.Magnitude > 250 then
+                    seat.CFrame = seat.CFrame + (seat.CFrame.LookVector * (seat.Throttle * _G.BoostMultiplier/2))
                 end
             end
         end
