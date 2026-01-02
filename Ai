@@ -1,45 +1,39 @@
--- // MANUAL GAS BOOST (TABLET 2026) //
+-- // FINAL BRUTE ACCEL 2026 (MOBILE OPTIMIZED) //
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
 _G.AccelEnabled = false
-_G.CurrentSpeed = 0
-_G.MaxSpeedLimit = 1000 -- Batas kecepatan maksimal yang kamu mau
+_G.Power = 10 -- Kekuatan dorongan per frame (Ubah jika terlalu pelan)
 
--- GUI Setup
 local ScreenGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
 local Btn = Instance.new("TextButton", ScreenGui)
 Btn.Size = UDim2.new(0, 150, 0, 50)
-Btn.Position = UDim2.new(0.05, 0, 0.3, 0)
+Btn.Position = UDim2.new(0.05, 0, 0.4, 0)
 Btn.Text = "GAS MOD: OFF"
-Btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+Btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 Btn.TextColor3 = Color3.new(1, 1, 1)
 Instance.new("UICorner", Btn)
 
 Btn.MouseButton1Click:Connect(function()
     _G.AccelEnabled = not _G.AccelEnabled
     Btn.Text = "GAS MOD: " .. (_G.AccelEnabled and "ON" or "OFF")
-    Btn.BackgroundColor3 = _G.AccelEnabled and Color3.fromRGB(0, 150, 255) or Color3.fromRGB(40, 40, 40)
+    Btn.BackgroundColor3 = _G.AccelEnabled and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(30, 30, 30)
 end)
 
-RunService.RenderStepped:Connect(function()
+RunService.Heartbeat:Connect(function()
     if _G.AccelEnabled then
         local char = LocalPlayer.Character
-        local hum = char and char:FindFirstChild("Humanoid")
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
         if hum and hum.SeatPart and hum.SeatPart:IsA("VehicleSeat") then
             local seat = hum.SeatPart
             
-            -- HANYA JALAN KALAU TOMBOL GAS DI LAYAR DITEKAN (Throttle)
+            -- Mendeteksi input Gas dari Tablet (Throttle)
             if seat.Throttle ~= 0 then
-                -- Menambah kecepatan secara bertahap (Akselerasi)
-                _G.CurrentSpeed = math.min(_G.CurrentSpeed + 5, _G.MaxSpeedLimit)
-                
-                -- Memberikan dorongan kecepatan langsung
-                seat.AssemblyLinearVelocity = seat.CFrame.LookVector * (seat.Throttle * _G.CurrentSpeed)
-            else
-                -- Jika gas dilepas, reset akselerasi agar tidak loncat saat gas lagi
-                _G.CurrentSpeed = seat.AssemblyLinearVelocity.Magnitude
+                -- METODE INJEKSI: Menambah Velocity yang sudah ada secara paksa
+                -- Ini akan menembus limit server karena kita menambahnya setiap milidetik
+                local boost = seat.CFrame.LookVector * (seat.Throttle * _G.Power)
+                seat.AssemblyLinearVelocity = seat.AssemblyLinearVelocity + boost
             end
         end
     end
