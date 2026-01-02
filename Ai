@@ -1,14 +1,15 @@
--- // THE ULTIMATE MOBILE ACCEL (FIXED SINKRONISASI 2026) //
+-- // STABLE MOBILE ACCEL (ANTI-BRUTAL & AUTO-STOP) //
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local LocalPlayer = Players.LocalPlayer
 
 _G.AccelEnabled = false
-_G.SpeedTarget = 600 
+_G.MaxSpeed = 400 -- Batas kecepatan (tidak brutal)
+_G.BoostPower = 2 -- Tambahan kecepatan tiap frame (Halus)
 _G.IsWPressed = false
 
--- // RE-SETUP UI //
+-- // UI SETUP //
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 if PlayerGui:FindFirstChild("AccelGui") then PlayerGui.AccelGui:Destroy() end
 
@@ -22,69 +23,59 @@ Btn.BackgroundColor3 = Color3.fromRGB(30,30,30)
 Btn.TextColor3 = Color3.new(1,1,1)
 Instance.new("UICorner", Btn)
 
--- Fungsi untuk melepas tombol W secara paksa (Mencegah macet)
-local function ForceReleaseW()
-    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.W, false, game)
-    _G.IsWPressed = false
+local function StopW()
+    if _G.IsWPressed then
+        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.W, false, game)
+        _G.IsWPressed = false
+    end
 end
 
 Btn.Activated:Connect(function()
     _G.AccelEnabled = not _G.AccelEnabled
     Btn.Text = "BOOST: " .. (_G.AccelEnabled and "ON" or "OFF")
-    Btn.BackgroundColor3 = _G.AccelEnabled and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(30,30,30)
-    
-    if not _G.AccelEnabled then
-        ForceReleaseW() -- Pastikan W terlepas saat mod dimatikan
-    end
+    Btn.BackgroundColor3 = _G.AccelEnabled and Color3.fromRGB(0, 200, 255) or Color3.fromRGB(30,30,30)
+    if not _G.AccelEnabled then StopW() end
 end)
 
--- // MAIN LOGIC (Menggunakan Heartbeat agar lebih sinkron dengan input) //
+-- // LOGIKA HANDLING HALUS //
 RunService.Heartbeat:Connect(function()
     if _G.AccelEnabled then
         local char = LocalPlayer.Character
-        local hum = char and char:FindFirstChildOfClass("Humanoid")
-        local seat = hum and hum.SeatPart
+        local seat = char and char:FindFirstChildOfClass("Humanoid") and char:FindFirstChildOfClass("Humanoid").SeatPart
         
         if seat and seat:IsA("VehicleSeat") then
-            local velocity = seat.AssemblyLinearVelocity
-            local speed = velocity.Magnitude
+            -- Cek apakah Anda sedang menekan gas di layar (Throttle tidak nol)
+            -- Atau cek jika mobil bergerak karena dorongan awal
+            local isMobileGasPressed = seat.Throttle ~= 0
+            local speed = seat.AssemblyLinearVelocity.Magnitude
             
-            -- DETEKSI: Jika Anda menekan gas di HP (Throttle Berubah) ATAU mobil bergerak
-            if seat.Throttle ~= 0 or speed > 1 then
-                
-                -- 1. SIMULASI W
+            if isMobileGasPressed then
+                -- 1. Tekan W Virtual
                 if not _G.IsWPressed then
                     VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.W, false, game)
                     _G.IsWPressed = true
                 end
                 
-                -- 2. BOOST KECEPATAN (Hanya aktif jika bergerak maju)
-                if speed < _G.SpeedTarget then
-                    local multiplier = 1.04
-                    -- Gunakan CFrame agar dorongan searah moncong mobil, bukan arah gerak liar
-                    local boost = seat.CFrame.LookVector * (speed * multiplier)
-                    
-                    -- Terapkan dengan Downforce agar tidak terbang
-                    seat.AssemblyLinearVelocity = Vector3.new(boost.X, -20, boost.Z)
+                -- 2. Tambahkan Kecepatan secara LINEAR (Tidak Brutal)
+                if speed < _G.MaxSpeed then
+                    local forwardDir = seat.CFrame.LookVector
+                    -- Dorongan konstan +2, bukan dikali (multiplier) agar tidak liar
+                    seat.AssemblyLinearVelocity = seat.AssemblyLinearVelocity + (forwardDir * _G.BoostPower)
                 end
+                
+                -- 3. Downforce agar tetap nempel tanah
+                local vel = seat.AssemblyLinearVelocity
+                seat.AssemblyLinearVelocity = Vector3.new(vel.X, -15, vel.Z)
             else
-                -- Jika mobil diam total, lepaskan W
-                if _G.IsWPressed then
-                    ForceReleaseW()
+                -- JIKA LEPAS GAS: Langsung stop W dan rem halus
+                StopW()
+                if speed > 5 then
+                    -- Berikan efek pengereman agar tidak meluncur abadi
+                    seat.AssemblyLinearVelocity = seat.AssemblyLinearVelocity * 0.95
                 end
             end
         else
-            -- Jika turun dari mobil, lepaskan W
-            if _G.IsWPressed then
-                ForceReleaseW()
-            end
+            StopW()
         end
     end
-end)
-
--- RESET OTOMATIS SAAT KARAKTER MATI
-LocalPlayer.CharacterAdded:Connect(function()
-    ForceReleaseW()
-    _G.AccelEnabled = false
-    Btn.Text = "BOOST: OFF"
 end)
