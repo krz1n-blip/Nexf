@@ -1,12 +1,12 @@
--- // REALISTIC MOBILE ACCEL (SMOOTH & STABLE 2026) //
+-- // MOBILE ACCEL 369 KM/H (BALANCED POWER) //
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
 local LocalPlayer = Players.LocalPlayer
 
 _G.AccelEnabled = false
-_G.MaxSpeed = 220 -- Batas kecepatan diturunkan agar tidak nembus 500
-_G.BoostPower = 0.35 -- Dorongan diperkecil agar sangat halus
+_G.MaxSpeed = 369 -- Batas kecepatan sesuai permintaan Anda
+_G.BoostPower = 2.1 -- Tenaga ditambah agar mobil mau jalan kencang
 _G.IsWPressed = false
 
 -- // SETUP UI //
@@ -18,7 +18,7 @@ ScreenGui.Name = "AccelGui"
 local Btn = Instance.new("TextButton", ScreenGui)
 Btn.Size = UDim2.new(0, 150, 0, 50)
 Btn.Position = UDim2.new(0.05, 0, 0.4, 0)
-Btn.Text = "SOFT BOOST: OFF"
+Btn.Text = "BOOST 369: OFF"
 Btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 Btn.TextColor3 = Color3.new(1, 1, 1)
 Instance.new("UICorner", Btn)
@@ -32,12 +32,12 @@ end
 
 Btn.Activated:Connect(function()
     _G.AccelEnabled = not _G.AccelEnabled
-    Btn.Text = "SOFT BOOST: " .. (_G.AccelEnabled and "ON" or "OFF")
-    Btn.BackgroundColor3 = _G.AccelEnabled and Color3.fromRGB(0, 200, 255) or Color3.fromRGB(30, 30, 30)
+    Btn.Text = "BOOST 369: " .. (_G.AccelEnabled and "ON" or "OFF")
+    Btn.BackgroundColor3 = _G.AccelEnabled and Color3.fromRGB(255, 100, 0) or Color3.fromRGB(30, 30, 30)
     if not _G.AccelEnabled then StopW() end
 end)
 
--- // LOGIKA HANDLING HALUS //
+-- // LOGIKA HANDLING //
 RunService.Heartbeat:Connect(function()
     if _G.AccelEnabled then
         local char = LocalPlayer.Character
@@ -48,27 +48,28 @@ RunService.Heartbeat:Connect(function()
             local speed = seat.AssemblyLinearVelocity.Magnitude
             
             if isMobileGasPressed then
-                -- 1. Simulasi W Virtual
+                -- 1. Simulasi W Virtual (Ide Anda)
                 if not _G.IsWPressed then
                     VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.W, false, game)
                     _G.IsWPressed = true
                 end
                 
-                -- 2. Tambahan Kecepatan Sangat Halus
+                -- 2. Tambahan Kecepatan (Linear Boost)
                 if speed < _G.MaxSpeed then
-                    -- Dorongan linear yang sangat kecil
+                    -- Menggunakan tenaga 2.1 agar mobil kuat menanjak dan melaju
                     seat.AssemblyLinearVelocity = seat.AssemblyLinearVelocity + (seat.CFrame.LookVector * _G.BoostPower)
                 end
                 
-                -- 3. Downforce Ringan agar ban tidak slip
+                -- 3. Downforce Stabilizer
+                -- Tetap pakai agar mobil tidak terbang saat kena gundukan di 369 km/h
                 local vel = seat.AssemblyLinearVelocity
-                seat.AssemblyLinearVelocity = Vector3.new(vel.X, -5, vel.Z)
+                seat.AssemblyLinearVelocity = Vector3.new(vel.X, -12, vel.Z)
             else
-                -- Langsung berhenti saat jempol lepas dari tombol gas
+                -- BERHENTI saat gas dilepas
                 StopW()
-                -- Efek pengereman alami
+                -- Rem halus agar tidak meluncur liar
                 if speed > 1 then
-                    seat.AssemblyLinearVelocity = seat.AssemblyLinearVelocity * 0.98
+                    seat.AssemblyLinearVelocity = seat.AssemblyLinearVelocity * 0.96
                 end
             end
         else
