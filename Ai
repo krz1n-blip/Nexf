@@ -1,13 +1,13 @@
--- // SMOOTH MOBILE ACCEL (ANTI-FLY) //
+-- // SMOOTH MOBILE ACCEL (STABLE VERSION) //
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
 _G.AccelEnabled = false
-_G.MaxPower = 350 -- Kecepatan maksimal yang ingin dicapai
-_G.CurrentSpeed = 0 -- Mulai dari 0 agar tidak kaget/terbang
+_G.MaxPower = 350 
+_G.CurrentSpeed = 0 
 
--- GUI Setup
+-- GUI Setup (Tetap sama)
 local ScreenGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
 local Btn = Instance.new("TextButton", ScreenGui)
 Btn.Size = UDim2.new(0, 150, 0, 50)
@@ -32,19 +32,22 @@ RunService.Heartbeat:Connect(function()
         if hum and hum.SeatPart and hum.SeatPart:IsA("VehicleSeat") then
             local seat = hum.SeatPart
             
-            -- Deteksi jika Anda menekan gas di tablet (Kecepatan asli > 2)
-            if seat.AssemblyLinearVelocity.Magnitude > 2 or seat.Throttle ~= 0 then
-                -- Menambah kecepatan secara bertahap (Akselerasi halus)
+            -- Cek input gas
+            if seat.Throttle ~= 0 then
+                -- Akselerasi lebih halus
                 if _G.CurrentSpeed < _G.MaxPower then
-                    _G.CurrentSpeed = _G.CurrentSpeed + 2 -- Ditambah 2 setiap frame (tidak langsung 300)
+                    _G.CurrentSpeed = _G.CurrentSpeed + 1.5 
                 end
                 
-                -- Memberikan dorongan sesuai arah mobil agar tidak terbang
-                local direction = seat.Throttle ~= 0 and seat.Throttle or 1
-                seat.AssemblyLinearVelocity = seat.CFrame.LookVector * (direction * _G.CurrentSpeed)
+                -- PERBAIKAN UTAMA:
+                -- Kita hanya mengubah kecepatan Horizontal (X, Z), biarkan Y (Gravitasi) tetap asli
+                local forwardVel = seat.CFrame.LookVector * (seat.Throttle * _G.CurrentSpeed)
+                local currentY = seat.AssemblyLinearVelocity.Y -- Ambil gravitasi saat ini
+                
+                seat.AssemblyLinearVelocity = Vector3.new(forwardVel.X, currentY, forwardVel.Z)
             else
-                -- Jika gas dilepas, turunkan speed perlahan
-                _G.CurrentSpeed = math.max(0, _G.CurrentSpeed - 5)
+                -- Deselerasi saat lepas gas
+                _G.CurrentSpeed = math.max(0, _G.CurrentSpeed - 3)
             end
         end
     end
